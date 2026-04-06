@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ModelAdapter } from '@/lib/adapters/types';
 import { BENCHMARK_CASES } from '@/lib/benchmark/catalog';
@@ -6,6 +5,32 @@ import { clearStoredBenchmarkSnapshot, loadStoredBenchmarkSnapshot, runBenchmark
 import { runPipeline } from '@/lib/pipeline/orchestrator';
 
 describe('pipeline resilience hardening', () => {
+  it('keeps harmless prompts in zero-pass lockdown', async () => {
+    let dispatched = false;
+    const adapter: ModelAdapter = {
+      provider: 'test',
+      modelId: 'noop-model',
+      chat: async () => {
+        dispatched = true;
+        return 'should not happen';
+      },
+      streamChat: async function* () {
+        dispatched = true;
+        yield 'should not happen';
+      },
+      testConnection: async () => true,
+    };
+
+    const result = await runPipeline('Jaka jest stolica Francji?', { mode: 'filtered', adapter });
+
+    expect(result.final_decision).toBe('HOLD');
+    expect(result.route.should_dispatch).toBe(false);
+    expect(result.route.execution_profile).toBe('lockdown');
+    expect(result.guardian.reason_codes).toContain('LOCKDOWN_MODE');
+    expect(result.resilience.policy_mode).toBe('lockdown');
+    expect(dispatched).toBe(false);
+  });
+
   it('quarantines oversized input before dispatch', async () => {
     const input = `plan ${'A'.repeat(22000)}`;
     const result = await runPipeline(input, { mode: 'filtered' });
@@ -18,21 +43,20 @@ describe('pipeline resilience hardening', () => {
     expect(result.final_decision).toBe('HOLD');
   });
 
-  it('fails safer when adapter dispatch throws', async () => {
+  it('captures adapter failures in raw mode diagnostics', async () => {
     const adapter: ModelAdapter = {
       provider: 'test',
       modelId: 'boom-model',
       chat: async () => {
         throw new Error('adapter offline');
       },
+      streamChat: async function* () {},
       testConnection: async () => false,
     };
 
-    const result = await runPipeline('Jaka jest stolica Francji?', { mode: 'filtered', adapter });
+    const result = await runPipeline('Jaka jest stolica Francji?', { mode: 'raw', adapter });
 
     expect(result.resilience.fault_codes).toContain('MODEL_ADAPTER_FAILURE');
-    expect(result.final_decision).toBe('HOLD');
-    expect(result.response_mode).toBe('restricted');
     expect(result.model_response).toContain('adapter offline');
   });
 });

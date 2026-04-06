@@ -1,5 +1,6 @@
+import { LayoutDashboard, MessageSquare, Shield, Tag } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Tag, Shield } from 'lucide-react';
+import { LockdownStatus } from './LockdownStatus';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -14,7 +15,7 @@ export function AppSidebar() {
     <aside className="w-64 min-h-screen bg-sidebar border-r border-sidebar-border flex flex-col">
       <div className="p-6 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-lg">🐺</div>
+          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-lg">A</div>
           <div>
             <h1 className="font-bold text-lg text-primary tracking-wider">ALFA</h1>
             <p className="text-[10px] text-muted-foreground tracking-widest uppercase">Guardian v2</p>
@@ -48,8 +49,11 @@ export function AppSidebar() {
             <Shield className="w-3 h-3 text-cyan-400" />
             <p className="text-[10px] text-muted-foreground font-mono tracking-wide">GUARDIAN PIPELINE</p>
           </div>
-          <p className="text-[10px] text-muted-foreground">🕰️ yesterday · ⚡ today · 🚀 tomorrow</p>
-          <p className="text-[10px] text-muted-foreground mt-1 opacity-60">Studio Labels → Partition Router</p>
+          <p className="text-[10px] text-muted-foreground">yesterday · today · tomorrow</p>
+          <p className="text-[10px] text-muted-foreground mt-1 opacity-60">Studio Labels {'->'} Partition Router</p>
+          <div className="mt-3">
+            <LockdownStatus compact />
+          </div>
         </div>
       </div>
     </aside>

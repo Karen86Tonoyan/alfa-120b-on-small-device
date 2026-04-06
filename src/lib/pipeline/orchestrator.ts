@@ -23,6 +23,7 @@ import { runCore } from './core';
 import { runGuardian } from './guardian';
 import { runLasuch } from './lasuch';
 import { enhancePrompt } from './prompt-enhancer';
+import { ALFA_LOCKDOWN_ENABLED, enforceLockdownDecision, enforceLockdownRoute, getPolicyMode } from './policy';
 import { routeTaggedMessage } from './router';
 import { runTagger } from './tagger';
 
@@ -201,6 +202,7 @@ function createResilienceReport(
     degraded: faults.length > 0,
     fail_closed: failClosed,
     input_truncated: inputTruncated,
+    policy_mode: getPolicyMode(),
     fault_codes: [...new Set(faults)],
     notes,
   };
@@ -345,6 +347,19 @@ export async function runPipeline(input: string, options: PipelineOptions): Prom
   final_decision = resilienceClamp.decision;
   response_mode = resilienceClamp.responseMode;
 
+  if (options.mode !== 'raw' && ALFA_LOCKDOWN_ENABLED) {
+    const lockdown = enforceLockdownDecision(final_decision, response_mode);
+    final_decision = lockdown.decision;
+    response_mode = lockdown.responseMode;
+    route = enforceLockdownRoute(route);
+
+    if (lockdown.changed) {
+      notes.push('Global lockdown mode prevented a pass-through decision.');
+    } else {
+      notes.push('Global lockdown mode disabled downstream model dispatch.');
+    }
+  }
+
   if (faults.includes('INPUT_TOO_LARGE')) {
     route = {
       ...route,
@@ -404,10 +419,19 @@ export async function runPipeline(input: string, options: PipelineOptions): Prom
     faults.some((fault) => ['LASUCH_FAILURE', 'TAGGER_FAILURE', 'CERBER_FAILURE', 'GUARDIAN_FAILURE', 'ROUTER_FAILURE', 'CORE_FAILURE'].includes(fault)),
   );
 
-  if (resilience.degraded && !guardian.reason_codes.includes('SYSTEM_DEGRADED')) {
+  const guardianReasonCodes = [...guardian.reason_codes];
+  if (ALFA_LOCKDOWN_ENABLED && options.mode !== 'raw' && !guardianReasonCodes.includes('LOCKDOWN_MODE')) {
+    guardianReasonCodes.push('LOCKDOWN_MODE');
+  }
+
+  if (resilience.degraded && !guardianReasonCodes.includes('SYSTEM_DEGRADED')) {
+    guardianReasonCodes.push('SYSTEM_DEGRADED');
+  }
+
+  if (guardianReasonCodes.length !== guardian.reason_codes.length) {
     guardian = {
       ...guardian,
-      reason_codes: [...guardian.reason_codes, 'SYSTEM_DEGRADED'],
+      reason_codes: guardianReasonCodes,
     };
   }
 

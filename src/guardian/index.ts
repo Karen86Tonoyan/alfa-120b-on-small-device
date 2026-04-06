@@ -33,6 +33,11 @@ export async function* guardianPipeline(
   // Step 2: Route to correct partition
   const routed = guardianRouter.route(labeled, options);
 
+  if (!routed.dispatchAllowed) {
+    yield 'Lockdown mode active: model dispatch disabled.';
+    return;
+  }
+
   // Step 3: Execute through adapter (streaming)
   yield* guardianRouter.execute(routed, adapter);
 }
@@ -48,6 +53,14 @@ export async function guardianAsk(
 ): Promise<{ response: string; partition: string; confidence: number }> {
   const labeled = guardianTagger.label(rawPrompt, sessionId);
   const routed = guardianRouter.route(labeled, options);
+
+  if (!routed.dispatchAllowed) {
+    return {
+      response: 'Lockdown mode active: model dispatch disabled.',
+      partition: labeled.label.partition,
+      confidence: labeled.label.confidence,
+    };
+  }
 
   let response = '';
   for await (const chunk of guardianRouter.execute(routed, adapter)) {

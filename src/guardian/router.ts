@@ -5,12 +5,15 @@
 
 import type { LabeledPrompt, PartitionConfig } from '@/types/studio-labels';
 import type { ModelAdapter } from '@/lib/adapters/types';
+import { ALFA_LOCKDOWN_ENABLED, getPolicyMode } from '@/lib/pipeline/policy';
 import { loadPartition } from '@/partitions/configs';
 
 export interface RoutedRequest {
   labeled: LabeledPrompt;
   partition: PartitionConfig;
   messages: { role: 'system' | 'user' | 'assistant'; content: string }[];
+  dispatchAllowed: boolean;
+  policyMode: 'adaptive' | 'lockdown';
 }
 
 export interface RouterOptions {
@@ -39,7 +42,13 @@ export class GuardianRouter {
       { role: 'user', content: labeled.raw },
     ];
 
-    return { labeled, partition, messages };
+    return {
+      labeled,
+      partition,
+      messages,
+      dispatchAllowed: !ALFA_LOCKDOWN_ENABLED,
+      policyMode: getPolicyMode(),
+    };
   }
 
   /**
@@ -51,6 +60,10 @@ export class GuardianRouter {
     adapter: ModelAdapter
   ): AsyncGenerator<string> {
     const { partition, messages } = routed;
+
+    if (!routed.dispatchAllowed) {
+      throw new Error('Lockdown mode active: model dispatch disabled.');
+    }
 
     yield* adapter.streamChat(messages, {
       temperature: partition.temperature,
