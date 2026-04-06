@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Wifi, WifiOff, Loader2, Server, Key, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -181,7 +181,7 @@ export function LLMConnectionPanel({ onAdapterChange }: Props) {
         <div className="border-t border-border p-4 space-y-4">
           <div className="flex items-center justify-between">
             <Label className="text-muted-foreground text-sm">Aktywne polaczenie</Label>
-            <Switch checked={config.enabled} onCheckedChange={v => updateConfig({ enabled: v })} />
+            <Switch checked={config.enabled} onCheckedChange={(v: boolean) => updateConfig({ enabled: v })} />
           </div>
 
           <div>
@@ -240,7 +240,7 @@ export function LLMConnectionPanel({ onAdapterChange }: Props) {
                 return (
                   <Input
                     value={config.modelId}
-                    onChange={e => updateConfig({ modelId: e.target.value })}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateConfig({ modelId: e.target.value })}
                     placeholder="Wpisz model ID..."
                     className="bg-secondary border-border font-mono text-sm"
                   />
@@ -253,7 +253,7 @@ export function LLMConnectionPanel({ onAdapterChange }: Props) {
                       {detectedModels.length} modeli wykrytych z Ollama
                     </Badge>
                   )}
-                  <Select value={config.modelId} onValueChange={v => updateConfig({ modelId: v })}>
+                  <Select value={config.modelId} onValueChange={(v: string) => updateConfig({ modelId: v })}>
                     <SelectTrigger className="bg-secondary border-border font-mono text-sm">
                       <SelectValue placeholder="Wybierz model..." />
                     </SelectTrigger>
@@ -267,7 +267,7 @@ export function LLMConnectionPanel({ onAdapterChange }: Props) {
                   </Select>
                   <Input
                     value={config.modelId}
-                    onChange={e => updateConfig({ modelId: e.target.value })}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateConfig({ modelId: e.target.value })}
                     placeholder="lub wpisz custom model ID..."
                     className="bg-secondary border-border font-mono text-xs h-8"
                   />
@@ -282,7 +282,7 @@ export function LLMConnectionPanel({ onAdapterChange }: Props) {
               <Input
                 type="password"
                 value={config.apiKey}
-                onChange={e => updateConfig({ apiKey: e.target.value })}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateConfig({ apiKey: e.target.value })}
                 placeholder="sk-..."
                 className="bg-secondary border-border font-mono text-sm"
               />
@@ -293,7 +293,7 @@ export function LLMConnectionPanel({ onAdapterChange }: Props) {
             <Label className="text-muted-foreground text-xs mb-1 block">Base URL</Label>
             <Input
               value={config.baseUrl}
-              onChange={e => updateConfig({ baseUrl: e.target.value })}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateConfig({ baseUrl: e.target.value })}
               placeholder={PROVIDER_INFO[config.provider]?.defaultUrl}
               className="bg-secondary border-border font-mono text-sm"
             />

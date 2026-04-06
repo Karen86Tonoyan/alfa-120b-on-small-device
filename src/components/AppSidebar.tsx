@@ -1,6 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { LayoutDashboard, MessageSquare, Tag, Shield } from 'lucide-react';
-import alfaWolfLogo from '@/assets/alfa-wolf-logo.png';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -15,7 +14,7 @@ export function AppSidebar() {
     <aside className="w-64 min-h-screen bg-sidebar border-r border-sidebar-border flex flex-col">
       <div className="p-6 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <img src={alfaWolfLogo} alt="ALFA" className="w-10 h-10 object-contain" />
+          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-lg">🐺</div>
           <div>
             <h1 className="font-bold text-lg text-primary tracking-wider">ALFA</h1>
             <p className="text-[10px] text-muted-foreground tracking-widest uppercase">Guardian v2</p>

@@ -3,7 +3,7 @@
 //  Real-time view of all tagged prompts
 // ============================================================
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Tag, RefreshCw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -56,8 +56,8 @@ export default function LabelsInspectorPage() {
         <div className="flex gap-2">
           <Input
             value={testPrompt}
-            onChange={e => setTestPrompt(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && testLabel()}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTestPrompt(e.target.value)}
+            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && testLabel()}
             placeholder="Wpisz dowolny prompt żeby zobaczyć jak go Guardian otaguje..."
             className="bg-secondary border-border"
           />

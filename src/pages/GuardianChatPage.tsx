@@ -3,7 +3,7 @@
 //  The core UI: prompts flow through Guardian → partition → model
 // ============================================================
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Loader2, Tag, Clock, Zap, Rocket, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -243,7 +243,7 @@ export default function GuardianChatPage() {
       <div className="flex gap-2">
         <Input
           value={input}
-          onChange={e => setInput(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Napisz prompt... Guardian automatycznie go otaguje i wybierze partycję"
           className="bg-card border-border"
