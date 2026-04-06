@@ -200,6 +200,7 @@ export interface PipelineResilienceReport {
   degraded: boolean;
   fail_closed: boolean;
   input_truncated: boolean;
+  policy_mode: 'adaptive' | 'lockdown';
   fault_codes: PipelineFaultCode[];
   notes: string[];
 }

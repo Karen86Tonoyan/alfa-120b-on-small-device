@@ -1,20 +1,16 @@
-// ============================================================
-//  ALFA Guardian v2 — Guardian Chat Page
-//  The core UI: prompts flow through Guardian → partition → model
-// ============================================================
-
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Loader2, Tag, Clock, Zap, Rocket, RotateCcw } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Loader2, RotateCcw, Send, Tag } from 'lucide-react';
+import { nanoid } from 'nanoid';
+import { LockdownStatus } from '@/components/LockdownStatus';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { LLMConnectionPanel } from '@/filters/LLMConnectionPanel';
-import { guardianTagger } from '@/guardian/tagger';
 import { guardianRouter } from '@/guardian/router';
-import { loadPartition } from '@/partitions/configs';
+import { guardianTagger } from '@/guardian/tagger';
 import type { ModelAdapter } from '@/lib/adapters/types';
+import { loadPartition } from '@/partitions/configs';
 import type { LabeledPrompt } from '@/types/studio-labels';
-import { nanoid } from 'nanoid';
 
 interface Message {
   id: string;
@@ -25,9 +21,9 @@ interface Message {
 }
 
 const PARTITION_ICONS: Record<string, string> = {
-  yesterday: '🕰️',
-  today: '⚡',
-  tomorrow: '🚀',
+  yesterday: 'Y',
+  today: 'T',
+  tomorrow: 'F',
 };
 
 const PARTITION_COLORS: Record<string, string> = {
@@ -56,17 +52,17 @@ export default function GuardianChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleAdapterChange = useCallback((a: ModelAdapter | null) => {
-    setAdapter(a);
+  const handleAdapterChange = useCallback((nextAdapter: ModelAdapter | null) => {
+    setAdapter(nextAdapter);
   }, []);
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
+
     const raw = input.trim();
     setInput('');
     setLoading(true);
 
-    // Step 1: Guardian tags the prompt
     const labeled = guardianTagger.label(raw, SESSION_ID);
     const partition = loadPartition(labeled.label.partition);
     setCurrentPartition(labeled.label.partition);
@@ -78,55 +74,60 @@ export default function GuardianChatPage() {
       label: labeled,
       partition: labeled.label.partition,
     };
-    setMessages(prev => [...prev, userMsg]);
+    setMessages((prev) => [...prev, userMsg]);
 
     if (!adapter) {
-      // No model — show label only
       const sysMsg: Message = {
         id: nanoid(),
         role: 'system',
-        content: `Guardian labeled this prompt → partition: **${labeled.label.partition}** (${labeled.label.intent}, ${labeled.label.domain}). Confidence: ${Math.round(labeled.label.confidence * 100)}%. Połącz model żeby otrzymać odpowiedź.`,
+        content: `Guardian labeled this prompt -> partition: ${labeled.label.partition} (${labeled.label.intent}, ${labeled.label.domain}). Confidence: ${Math.round(labeled.label.confidence * 100)}%. Lockdown remains active, so prompts are analyzed locally and not dispatched to any model.`,
         partition: labeled.label.partition,
       };
-      setMessages(prev => [...prev, sysMsg]);
+      setMessages((prev) => [...prev, sysMsg]);
       setLoading(false);
       return;
     }
 
-    // Step 2: Route and stream
     const history = messages
-      .filter(m => m.role === 'user' || m.role === 'assistant')
-      .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+      .filter((message) => message.role === 'user' || message.role === 'assistant')
+      .map((message) => ({ role: message.role as 'user' | 'assistant', content: message.content }));
 
     const routed = guardianRouter.route(labeled, { conversationHistory: history });
 
+    if (!routed.dispatchAllowed) {
+      const holdMsg: Message = {
+        id: nanoid(),
+        role: 'system',
+        content: `Guardian labeled this prompt -> partition: ${labeled.label.partition} (${labeled.label.intent}, ${labeled.label.domain}). Policy: ${routed.policyMode}. Model dispatch is disabled, so the request is held and only analyzed locally.`,
+        partition: labeled.label.partition,
+      };
+      setMessages((prev) => [...prev, holdMsg]);
+      setLoading(false);
+      return;
+    }
+
     const assistantId = nanoid();
-    setMessages(prev => [...prev, {
-      id: assistantId,
-      role: 'assistant',
-      content: '',
-      partition: labeled.label.partition,
-    }]);
+    setMessages((prev) => [...prev, { id: assistantId, role: 'assistant', content: '', partition: labeled.label.partition }]);
 
     try {
       for await (const chunk of guardianRouter.execute(routed, adapter)) {
-        setMessages(prev => prev.map(m =>
-          m.id === assistantId ? { ...m, content: m.content + chunk } : m
-        ));
+        setMessages((prev) =>
+          prev.map((message) => (message.id === assistantId ? { ...message, content: message.content + chunk } : message)),
+        );
       }
-    } catch (err) {
-      setMessages(prev => prev.map(m =>
-        m.id === assistantId ? { ...m, content: `Error: ${err}` } : m
-      ));
+    } catch (error) {
+      setMessages((prev) =>
+        prev.map((message) => (message.id === assistantId ? { ...message, content: `Error: ${error}` } : message)),
+      );
     }
 
     setLoading(false);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      void handleSend();
     }
   };
 
@@ -140,7 +141,6 @@ export default function GuardianChatPage() {
 
   return (
     <div className="flex flex-col h-screen bg-background p-6 gap-4">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-2xl">{PARTITION_ICONS[currentPartition]}</span>
@@ -152,18 +152,16 @@ export default function GuardianChatPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {/* Partition indicators */}
-          {(['yesterday', 'today', 'tomorrow'] as const).map(p => (
+          <LockdownStatus compact />
+          {(['yesterday', 'today', 'tomorrow'] as const).map((partitionName) => (
             <Badge
-              key={p}
+              key={partitionName}
               variant="outline"
               className={`text-[10px] font-mono transition-all ${
-                currentPartition === p
-                  ? PARTITION_BADGE[p] + ' ring-1'
-                  : 'opacity-40'
+                currentPartition === partitionName ? `${PARTITION_BADGE[partitionName]} ring-1` : 'opacity-40'
               }`}
             >
-              {PARTITION_ICONS[p]} {p}
+              {PARTITION_ICONS[partitionName]} {partitionName}
             </Badge>
           ))}
           <Button variant="ghost" size="sm" onClick={reset} className="gap-1">
@@ -172,10 +170,9 @@ export default function GuardianChatPage() {
         </div>
       </div>
 
-      {/* LLM Panel */}
       <LLMConnectionPanel onAdapterChange={handleAdapterChange} />
+      <LockdownStatus />
 
-      {/* Partition info bar */}
       <div className={`rounded-lg border p-3 text-xs font-mono ${PARTITION_COLORS[currentPartition]}`}>
         <div className="flex items-center gap-2">
           <Tag className="w-3 h-3" />
@@ -184,51 +181,51 @@ export default function GuardianChatPage() {
             {partitionConfig.description}
           </span>
           <span className="text-muted-foreground ml-auto">
-            temp: {partitionConfig.temperature} · tokens: {partitionConfig.maxTokens} · pamiec: {partitionConfig.memoryWindow} wiadomosci
+            temp: {partitionConfig.temperature} / tokens: {partitionConfig.maxTokens} / pamiec: {partitionConfig.memoryWindow} wiadomosci
           </span>
         </div>
       </div>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-3 pr-1">
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-4">
-            <div className="text-6xl">🛡️</div>
-            <p className="text-sm">Guardian gotowy — napisz cokolwiek</p>
-            <p className="text-xs opacity-60">Prompte zostaną automatycznie otagowane i przekierowane do właściwej partycji modelu</p>
+            <div className="text-6xl">A</div>
+            <p className="text-sm">Guardian gotowy - napisz cokolwiek</p>
+            <p className="text-xs opacity-60">Prompty zostana automatycznie otagowane i przypisane do odpowiedniej partycji.</p>
           </div>
         )}
-        {messages.map(msg => (
-          <div
-            key={msg.id}
-            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
+
+        {messages.map((message) => (
+          <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div
               className={`max-w-[80%] rounded-xl px-4 py-3 text-sm ${
-                msg.role === 'user'
+                message.role === 'user'
                   ? 'bg-primary text-primary-foreground'
-                  : msg.role === 'system'
-                  ? 'bg-secondary text-muted-foreground italic'
-                  : `bg-card border ${msg.partition ? PARTITION_COLORS[msg.partition] : 'border-border'}`
+                  : message.role === 'system'
+                    ? 'bg-secondary text-muted-foreground italic'
+                    : `bg-card border ${message.partition ? PARTITION_COLORS[message.partition] : 'border-border'}`
               }`}
             >
-              {msg.role === 'user' && msg.label && (
+              {message.role === 'user' && message.label && (
                 <div className="flex items-center gap-1 mb-2 opacity-70">
                   <Tag className="w-3 h-3" />
                   <span className="text-[10px] font-mono">
-                    {PARTITION_ICONS[msg.label.label.partition]} {msg.label.label.partition} · {msg.label.label.intent} · {msg.label.label.domain} · {Math.round(msg.label.label.confidence * 100)}%
+                    {PARTITION_ICONS[message.label.label.partition]} {message.label.label.partition} / {message.label.label.intent} / {message.label.label.domain} / {Math.round(message.label.label.confidence * 100)}%
                   </span>
                 </div>
               )}
-              <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
-              {msg.role === 'assistant' && msg.partition && (
+              <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+              {message.role === 'assistant' && message.partition && (
                 <div className="mt-2 pt-2 border-t border-border/30 flex items-center gap-1 opacity-50">
-                  <span className="text-[10px] font-mono">{PARTITION_ICONS[msg.partition]} {msg.partition}</span>
+                  <span className="text-[10px] font-mono">
+                    {PARTITION_ICONS[message.partition]} {message.partition}
+                  </span>
                 </div>
               )}
             </div>
           </div>
         ))}
+
         {loading && (
           <div className="flex justify-start">
             <div className="bg-card border border-border rounded-xl px-4 py-3">
@@ -239,17 +236,16 @@ export default function GuardianChatPage() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
       <div className="flex gap-2">
         <Input
           value={input}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) => setInput(event.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Napisz prompt... Guardian automatycznie go otaguje i wybierze partycję"
+          placeholder="Napisz prompt... Guardian automatycznie go otaguje i wybierze partycje"
           className="bg-card border-border"
           disabled={loading}
         />
-        <Button onClick={handleSend} disabled={loading || !input.trim()} className="gap-2">
+        <Button onClick={() => void handleSend()} disabled={loading || !input.trim()} className="gap-2">
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
         </Button>
       </div>

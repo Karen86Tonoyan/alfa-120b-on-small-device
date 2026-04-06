@@ -6,9 +6,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { LockdownStatus } from '@/components/LockdownStatus';
 import type { ModelAdapter } from '@/lib/adapters/types';
 import { createAdapter } from '@/lib/adapters/factory';
 import { OllamaAdapter } from '@/lib/adapters/ollama';
+import { ALFA_LOCKDOWN_ENABLED } from '@/lib/pipeline/policy';
 import { PROVIDER_INFO, type AIProvider } from '@/types/studio-labels';
 
 interface LLMConfig {
@@ -75,7 +77,9 @@ function loadConfig(): LLMConfig {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return JSON.parse(raw);
-  } catch {}
+  } catch {
+    // Fall back to the default local model config when storage is unavailable.
+  }
   return { provider: 'ollama', apiKey: '', baseUrl: 'http://localhost:11434', modelId: 'llama3.2:1b', enabled: false };
 }
 
@@ -170,7 +174,7 @@ export function LLMConnectionPanel({ onAdapterChange }: Props) {
             </Badge>
           )}
           {!config.enabled && (
-            <span className="text-xs text-muted-foreground">Pipeline dziala bez modelu (analiza only)</span>
+            <span className="text-xs text-muted-foreground">Pipeline dziala bez modelu (analysis only)</span>
           )}
         </div>
         {expanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
@@ -179,6 +183,15 @@ export function LLMConnectionPanel({ onAdapterChange }: Props) {
       {/* Expanded config */}
       {expanded && (
         <div className="border-t border-border p-4 space-y-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <LockdownStatus compact />
+            {ALFA_LOCKDOWN_ENABLED && (
+              <p className="text-xs text-muted-foreground">
+                Mozesz testowac polaczenie i modele, ale dispatch do modelu pozostaje zablokowany.
+              </p>
+            )}
+          </div>
+
           <div className="flex items-center justify-between">
             <Label className="text-muted-foreground text-sm">Aktywne polaczenie</Label>
             <Switch checked={config.enabled} onCheckedChange={(v: boolean) => updateConfig({ enabled: v })} />

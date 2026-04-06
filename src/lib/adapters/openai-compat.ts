@@ -78,7 +78,9 @@ export class OpenAICompatAdapter implements ModelAdapter {
           const json = JSON.parse(trimmed);
           const content = json.choices?.[0]?.delta?.content;
           if (content) yield content;
-        } catch {}
+        } catch {
+          // Ignore malformed SSE frames and continue streaming.
+        }
       }
     }
   }

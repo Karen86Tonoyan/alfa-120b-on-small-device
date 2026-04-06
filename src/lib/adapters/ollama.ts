@@ -66,7 +66,9 @@ export class OllamaAdapter implements ModelAdapter {
         try {
           const json = JSON.parse(line);
           if (json.message?.content) yield json.message.content;
-        } catch {}
+        } catch {
+          // Ignore malformed stream chunks and continue reading the response.
+        }
       }
     }
   }
